@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CHROMATIC RESENHA</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; touch-action:none; }
+html,body { width:100%; height:100%; overflow:hidden; background:#111; font-family: monospace; }
+#gameCanvas { display:block; margin:0 auto; background:#222; max-width:100%; max-height:100%; }
+#ui { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+.menu { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; pointer-events:auto; }
+.menu h1 { font-size:clamp(24px,8vw,64px); color:#ff0; text-shadow:4px 4px 0 #f00; margin-bottom:20px; letter-spacing:4px; }
+.menu h2 { font-size:clamp(18px,4vw,32px); margin:10px; color:#0ff; }
+.btn { background:#333; border:3px solid #fff; color:#fff; padding:12px 28px; margin:8px; font-size:clamp(14px,3vw,20px); cursor:pointer; font-family:monospace; }
+.btn:hover, .btn:active { background:#555; border-color:#ff0; }
+.char-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; max-width:90vw; }
+.char-btn { width:clamp(70px,18vw,120px); height:clamp(70px,18vw,120px); border:3px solid #fff; background:#222; color:#fff; font-size:12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.char-btn.selected { border-color:#ff0; background:#440; }
+.char-btn .icon { width:40px; height:40px; margin-bottom:4px; }
+#hud { position:absolute; top:0; left:0; width:100%; height:60px; display:none; pointer-events:none; }
+.bar-bg { position:absolute; top:10px; height:24px; background:#333; border:2px solid #fff; }
+.bar-fill { height:100%; transition:width 0.1s; }
+#p1bar { left:10px; width:35%; }
+#p2bar { right:10px; width:35%; }
+#p1fill { background:#0f0; width:100%; }
+#p2fill { background:#0f0; width:100%; float:right; }
+#timer { position:absolute; left:50%; transform:translateX(-50%); top:8px; font-size:28px; color:#fff; font-weight:bold; }
+#touchControls { position:absolute; bottom:0; left:0; width:100%; height:140px; display:none; pointer-events:auto; }
+.tc-btn { position:absolute; width:60px; height:60px; background:rgba(255,255,255,0.25); border:2px solid #fff; border-radius:50%; color:#fff; font-size:14px; display:flex; align-items:center; justify-content:center; user-select:none; }
+#btnLeft { left:20px; bottom:40px; }
+#btnRight { left:100px; bottom:40px; }
+#btnJump { left:60px; bottom:100px; }
+#btnAtk { right:140px; bottom:40px; }
+#btnStrong { right:70px; bottom:40px; }
+#btnSpecial { right:20px; bottom:100px; }
+#btnBlock { right:90px; bottom:100px; }
+.hidden { display:none !important; }
+#victoryScreen { background:rgba(0,0,0,0.85); }
+#victoryScreen .big { font-size:clamp(32px,10vw,72px); color:#ffd700; text-shadow:0 0 20px #ff0; margin:20px; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui">
+  <div id="titleScreen" class="menu">
+    <h1>CHROMATIC<br>RESENHA</h1>
+    <button class="btn" id="btnStart">START</button>
+  </div>
+  <div id="mainMenu" class="menu hidden">
+    <h1>CHROMATIC RESENHA</h1>
+    <button class="btn" id="btnStory">STORY MODE</button>
+    <button class="btn" id="btnVersus">VERSUS MODE</button>
+    <button class="btn" id="btnConfig">CONFIG</button>
+  </div>
+  <div id="charSelect" class="menu hidden">
+    <h2 id="charSelectTitle">SELECT CHARACTER</h2>
+    <div class="char-grid" id="charGrid"></div>
+    <button class="btn hidden" id="btnConfirmChar">CONFIRM</button>
+  </div>
+  <div id="stageSelect" class="menu hidden">
+    <h2>SELECT STAGE</h2>
+    <button class="btn stage-btn" data-stage="0">ARENA</button>
+    <button class="btn stage-btn" data-stage="1">ROOFTOP</button>
+    <button class="btn stage-btn" data-stage="2">DOJO</button>
+    <button class="btn" id="btnBackStage">BACK</button>
+  </div>
+  <div id="configMenu" class="menu hidden">
+    <h2>CONFIG</h2>
+    <p style="margin:10px;color:#aaa">PC Controls:</p>
+    <p style="font-size:12px;color:#ccc">P1: WASD move, F attack, G strong, H special, S block</p>
+    <p style="font-size:12px;color:#ccc">P2: Arrows move, 1 attack, 2 strong, 3 special, Down block</p>
+    <button class="btn" id="btnBackConfig">BACK</button>
+  </div>
+  <div id="hud">
+    <div class="bar-bg" id="p1bar"><div class="bar-fill" id="p1fill"></div></div>
+    <div id="timer">99</div>
+    <div class="bar-bg" id="p2bar"><div class="bar-fill" id="p2fill"></div></div>
+  </div>
+  <div id="victoryScreen" class="menu hidden">
+    <div class="big">CONGRATULATIONS!</div>
+    <div id="vicChar" style="width:120px;height:120px;margin:20px;border:4px solid #ffd700;"></div>
+    <div id="vicName" style="font-size:24px;color:#fff;margin:10px;"></div>
+    <button class="btn" id="btnVicContinue">CONTINUE</button>
+  </div>
+  <div id="defeatScreen" class="menu hidden">
+    <h1 style="color:#f00">DEFEAT</h1>
+    <button class="btn" id="btnDefRetry">RETRY</button>
+    <button class="btn" id="btnDefMenu">MAIN MENU</button>
+  </div>
+  <div id="touchControls">
+    <div class="tc-btn" id="btnLeft">◀</div>
+    <div class="tc-btn" id="btnRight">▶</div>
+    <div class="tc-btn" id="btnJump">▲</div>
+    <div class="tc-btn" id="btnAtk">A</div>
+    <div class="tc-btn" id="btnStrong">S</div>
+    <div class="tc-btn" id="btnSpecial">SP</div>
+    <div class="tc-btn" id="btnBlock">B</div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
