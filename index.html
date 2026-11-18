@@ -6,41 +6,50 @@
 <title>CHROMATIC RESENHA</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; touch-action:none; }
-html,body { width:100%; height:100%; overflow:hidden; background:#111; font-family: monospace; }
-#gameCanvas { display:block; margin:0 auto; background:#222; max-width:100%; max-height:100%; }
+html,body { width:100%; height:100%; overflow:hidden; background:#05030d; font-family: Impact, "Arial Black", "Haettenschweiler", sans-serif; }
+#gameCanvas { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:block; background:#000; image-rendering:auto; }
 #ui { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
 .menu { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; pointer-events:auto; }
-.menu h1 { font-size:clamp(28px,9vw,72px); color:#ff0; text-shadow:5px 5px 0 #f00, -2px -2px 0 #0ff; margin-bottom:24px; letter-spacing:6px; animation:pulse 1.5s ease-in-out infinite; }
-@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.03)} }
-.menu h2 { font-size:clamp(18px,4vw,32px); margin:12px; color:#0ff; text-shadow:2px 2px 0 #00a; }
-.btn { background:linear-gradient(180deg,#444,#222); border:3px solid #fff; color:#fff; padding:14px 32px; margin:10px; font-size:clamp(14px,3vw,20px); cursor:pointer; font-family:monospace; text-transform:uppercase; letter-spacing:2px; box-shadow:4px 4px 0 #000; transition:all 0.1s; }
-.btn:hover, .btn:active { background:linear-gradient(180deg,#666,#333); border-color:#ff0; color:#ff0; transform:translate(-2px,-2px); box-shadow:6px 6px 0 #000; }
-.char-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; max-width:90vw; }
-.char-btn { width:clamp(72px,18vw,130px); height:clamp(72px,18vw,130px); border:3px solid #fff; background:#1a1a2e; color:#fff; font-size:11px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; transition:all 0.15s; }
-.char-btn:hover { border-color:#0ff; transform:scale(1.05); }
-.char-btn.selected { border-color:#ff0; background:#3d2b00; box-shadow:0 0 16px #ff0; }
-.char-btn .icon { width:44px; height:44px; margin-bottom:6px; border-radius:8px; }
-#hud { position:absolute; top:0; left:0; width:100%; height:70px; display:none; pointer-events:none; }
-.bar-bg { position:absolute; top:12px; height:28px; background:#111; border:3px solid #fff; box-shadow:0 0 8px rgba(0,0,0,0.5); }
-.bar-fill { height:100%; transition:width 0.08s; }
-#p1bar { left:12px; width:36%; }
-#p2bar { right:12px; width:36%; }
-#p1fill { background:linear-gradient(90deg,#0f0,#2ecc71); width:100%; }
-#p2fill { background:linear-gradient(90deg,#e74c3c,#c0392b); width:100%; float:right; }
-#timer { position:absolute; left:50%; transform:translateX(-50%); top:8px; font-size:32px; color:#ff0; font-weight:bold; text-shadow:3px 3px 0 #f00; background:rgba(0,0,0,0.5); padding:2px 16px; border:2px solid #fff; }
+
+/* Title logo: chrome + red outline, SF style */
+.menu h1 { font-size:clamp(34px,10vw,96px); line-height:0.95; text-align:center; letter-spacing:3px; margin-bottom:26px; text-transform:uppercase;
+  background:linear-gradient(180deg,#fffbd0 0%,#ffd21f 38%,#ff8a1f 52%,#c3280a 100%); -webkit-background-clip:text; background-clip:text; color:transparent;
+  -webkit-text-stroke:2px #3a0a04; filter:drop-shadow(0 4px 0 #3a0a04) drop-shadow(0 0 18px rgba(255,120,20,.6)); animation:pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+@keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:.15} }
+.menu h2 { font-size:clamp(20px,4.4vw,38px); margin:8px 0 14px; letter-spacing:4px; color:#ffe14a; text-shadow:3px 3px 0 #b3200a, 0 0 18px rgba(255,200,40,.5); }
+
+.btn { position:relative; background:linear-gradient(180deg,#3b5bd9 0%,#1b2a7a 55%,#10184d 100%); border:3px solid #f2d36b; outline:3px solid #000; color:#fff; padding:12px 38px; margin:8px;
+  font-size:clamp(15px,3vw,22px); cursor:pointer; font-family:inherit; text-transform:uppercase; letter-spacing:4px; min-width:min(70vw,300px);
+  text-shadow:2px 2px 0 #000; box-shadow:0 5px 0 #000, inset 0 2px 0 rgba(255,255,255,.35); transition:transform .08s, filter .08s; clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%); }
+.btn:hover, .btn:active { background:linear-gradient(180deg,#ffe14a 0%,#ff9d1f 55%,#d9500a 100%); color:#fff; border-color:#fff; transform:translateY(-2px) scale(1.04); filter:brightness(1.1); }
+#btnStart { animation:blink 1.1s steps(1) infinite; font-size:clamp(18px,3.6vw,28px); }
+#btnStart:hover { animation:none; }
+
+.char-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; max-width:94vw; }
+.char-btn { width:clamp(86px,19vw,150px); border:3px solid #6a6a8a; background:linear-gradient(180deg,#26264a,#0d0d22); color:#fff; font-family:inherit; font-size:clamp(11px,1.9vw,16px);
+  letter-spacing:1px; cursor:pointer; display:flex; flex-direction:column; align-items:center; padding:5px 5px 7px; text-transform:uppercase; transition:transform .1s, border-color .1s; box-shadow:0 4px 0 #000; }
+.char-btn .icon { width:100%; aspect-ratio:1; display:block; margin-bottom:5px; border:2px solid #000; }
+.char-btn small { font-family:monospace; font-size:clamp(8px,1.3vw,11px); color:#9fa3c8; text-transform:none; letter-spacing:0; margin-top:2px; text-align:center; }
+.char-btn:hover { border-color:#4ff; transform:translateY(-3px); }
+.char-btn.selected { border-color:#ffe14a; background:linear-gradient(180deg,#5a3a10,#1b1006); box-shadow:0 0 22px #ff9d1f, 0 4px 0 #000; animation:pulse .8s ease-in-out infinite; }
+
 #touchControls { position:absolute; bottom:0; left:0; width:100%; height:150px; display:none; pointer-events:auto; }
-.tc-btn { position:absolute; width:64px; height:64px; background:rgba(255,255,255,0.2); border:3px solid #fff; border-radius:50%; color:#fff; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:center; user-select:none; box-shadow:0 0 10px rgba(255,255,255,0.3); }
-.tc-btn:active { background:rgba(255,255,0,0.4); border-color:#ff0; }
-#btnLeft { left:20px; bottom:40px; }
-#btnRight { left:100px; bottom:40px; }
-#btnJump { left:60px; bottom:110px; }
-#btnAtk { right:150px; bottom:40px; }
-#btnStrong { right:75px; bottom:40px; }
-#btnSpecial { right:20px; bottom:110px; }
-#btnBlock { right:95px; bottom:110px; }
+.tc-btn { position:absolute; width:64px; height:64px; background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.45),rgba(255,255,255,.1)); border:3px solid #fff; border-radius:50%; color:#fff; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:center; user-select:none; box-shadow:0 0 10px rgba(255,255,255,0.3); text-shadow:1px 1px 0 #000; }
+.tc-btn:active { background:rgba(255,225,74,0.55); border-color:#ffe14a; }
+#btnLeft { left:20px; bottom:40px; } #btnRight { left:100px; bottom:40px; } #btnJump { left:60px; bottom:110px; }
+#btnAtk { right:150px; bottom:40px; } #btnStrong { right:75px; bottom:40px; } #btnSpecial { right:20px; bottom:110px; } #btnBlock { right:95px; bottom:110px; }
 .hidden { display:none !important; }
-#victoryScreen { background:rgba(0,0,0,0.9); }
-#victoryScreen .big { font-size:clamp(36px,11vw,80px); color:#ffd700; text-shadow:0 0 30px #ff0, 4px 4px 0 #f00; margin:24px; animation:pulse 0.8s ease-in-out infinite; }
+
+#victoryScreen { background:radial-gradient(ellipse at center, rgba(60,30,0,.82), rgba(0,0,0,.94)); }
+#victoryScreen .big { font-size:clamp(32px,9vw,76px); text-align:center; background:linear-gradient(180deg,#fff,#ffd700 50%,#e8650a); -webkit-background-clip:text; background-clip:text; color:transparent;
+  -webkit-text-stroke:2px #5a1a04; filter:drop-shadow(0 4px 0 #3a0a04) drop-shadow(0 0 24px #ff0); margin:14px; animation:pulse .8s ease-in-out infinite; }
+#vicChar { border:5px solid #ffd700; box-shadow:0 0 40px #ffb300; margin:12px; line-height:0; }
+#vicChar canvas { width:clamp(120px,24vw,200px); height:auto; }
+#vicName { font-size:clamp(20px,4vw,34px); color:#fff; margin:8px; letter-spacing:4px; text-shadow:3px 3px 0 #b3200a; }
+#defeatScreen { background:rgba(10,0,0,.82); }
+#defeatScreen h1 { background:linear-gradient(180deg,#ffb0a0,#ff3a2a 50%,#7a0a04); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.cfg { font-family:monospace; font-size:clamp(11px,2vw,15px); color:#cfd3ff; margin:4px; }
 </style>
 </head>
 <body>
@@ -48,7 +57,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:#111; font-fami
 <div id="ui">
   <div id="titleScreen" class="menu">
     <h1>CHROMATIC<br>RESENHA</h1>
-    <button class="btn" id="btnStart">START</button>
+    <button class="btn" id="btnStart">PRESS START</button>
   </div>
   <div id="mainMenu" class="menu hidden">
     <h1>CHROMATIC RESENHA</h1>
@@ -70,24 +79,19 @@ html,body { width:100%; height:100%; overflow:hidden; background:#111; font-fami
   </div>
   <div id="configMenu" class="menu hidden">
     <h2>CONFIG</h2>
-    <p style="margin:10px;color:#aaa">PC Controls:</p>
-    <p style="font-size:12px;color:#ccc">P1: WASD move, F attack, G strong, H special, S block</p>
-    <p style="font-size:12px;color:#ccc">P2: Arrows move, 1 attack, 2 strong, 3 special, Down block</p>
+    <p class="cfg" style="font-size:18px;color:#ffe14a">PC Controls</p>
+    <p class="cfg">P1: WASD move, F attack, G strong, H special, S block</p>
+    <p class="cfg">P2: Arrows move, 1 attack, 2 strong, 3 special, Down block</p>
     <button class="btn" id="btnBackConfig">BACK</button>
-  </div>
-  <div id="hud">
-    <div class="bar-bg" id="p1bar"><div class="bar-fill" id="p1fill"></div></div>
-    <div id="timer">99</div>
-    <div class="bar-bg" id="p2bar"><div class="bar-fill" id="p2fill"></div></div>
   </div>
   <div id="victoryScreen" class="menu hidden">
     <div class="big">CONGRATULATIONS!</div>
-    <div id="vicChar" style="width:120px;height:120px;margin:20px;border:4px solid #ffd700;"></div>
-    <div id="vicName" style="font-size:24px;color:#fff;margin:10px;"></div>
+    <div id="vicChar"></div>
+    <div id="vicName"></div>
     <button class="btn" id="btnVicContinue">CONTINUE</button>
   </div>
   <div id="defeatScreen" class="menu hidden">
-    <h1 style="color:#f00">DEFEAT</h1>
+    <h1>DEFEAT</h1>
     <button class="btn" id="btnDefRetry">RETRY</button>
     <button class="btn" id="btnDefMenu">MAIN MENU</button>
   </div>
@@ -101,6 +105,11 @@ html,body { width:100%; height:100%; overflow:hidden; background:#111; font-fami
     <div class="tc-btn" id="btnBlock">B</div>
   </div>
 </div>
+<script src="stages.js"></script>
+<script src="looks.js"></script>
+<script src="fx.js"></script>
+<script src="art.js"></script>
+<script src="hud.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
