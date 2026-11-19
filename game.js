@@ -15,13 +15,13 @@ resize();
 
 // ========== CHARACTERS ==========
 const CHARACTERS = [
-  { id: 0, name: 'The Forge', color: '#888', accent: '#ff6600', speed: 4.2, jump: 14, hp: 100, damageMul: 1.0, specialty: 'fast', desc: 'Forger - Quick strikes' },
-  { id: 1, name: 'Tomato', color: '#e74c3c', accent: '#27ae60', speed: 3.5, jump: 13, hp: 110, damageMul: 1.05, specialty: 'balanced', desc: 'Versatile tomato' },
+  { id: 0, name: 'The Forge', color: '#888', accent: '#ff6600', speed: 4.2, jump: 14, hp: 105, damageMul: 1.1, specialty: 'fast', desc: 'Forger - Quick strikes' },
+  { id: 1, name: 'Tomato', color: '#e74c3c', accent: '#27ae60', speed: 3.5, jump: 13, hp: 115, damageMul: 1.2, specialty: 'balanced', desc: 'Versatile tomato' },
   { id: 2, name: 'Doggie', color: '#a0522d', accent: '#f1c40f', speed: 5.5, jump: 15, hp: 90, damageMul: 0.9, specialty: 'speed', desc: 'Extremely fast dog' },
   { id: 3, name: 'Foobal', color: '#2ecc71', accent: '#fff', speed: 3.8, jump: 12, hp: 100, damageMul: 1.0, specialty: 'ranged', desc: 'Long-range soccer' },
-  { id: 4, name: 'Box-er', color: '#8e44ad', accent: '#f39c12', speed: 2.2, jump: 10, hp: 125, damageMul: 1.35, specialty: 'tank', desc: 'Slow heavy damage' },
-  { id: 5, name: 'Jumper', color: '#3498db', accent: '#e67e22', speed: 3.8, jump: 18, hp: 125, damageMul: 1.6, specialty: 'air', desc: 'Aerial specialist' },
-  { id: 6, name: 'Ranch-Man', color: '#2980b9', accent: '#d35400', speed: 3.4, jump: 12, hp: 115, damageMul: 1.3, specialty: 'whip', desc: 'Cowboy whip master' },
+  { id: 4, name: 'Box-er', color: '#8e44ad', accent: '#f39c12', speed: 2.2, jump: 10, hp: 112, damageMul: 1.05, specialty: 'tank', desc: 'Slow heavy damage' },
+  { id: 5, name: 'Jumper', color: '#3498db', accent: '#e67e22', speed: 3.8, jump: 18, hp: 125, damageMul: 1.75, specialty: 'air', desc: 'Aerial specialist' },
+  { id: 6, name: 'Ranch-Man', color: '#2980b9', accent: '#d35400', speed: 3.4, jump: 12, hp: 120, damageMul: 1.5, specialty: 'whip', desc: 'Cowboy whip master' },
   { id: 7, name: 'Iron Fist', color: '#2c3e50', accent: '#c0392b', speed: 3.0, jump: 11, hp: 120, damageMul: 1.35, specialty: 'close', desc: 'Iron fists short range' }
 ];
 
@@ -74,7 +74,7 @@ function startFight(char1, char2, p1IsHuman = true, p2IsHuman = false) {
   p2 = new Fighter(char2, 2, p2IsHuman);
   timer = 99; timerAcc = 0; fightOver = false; winner = null;
   phase = 'intro'; phaseT = 0; koText = 'K.O.';
-  clearFX(); projectiles.length = 0;
+  clearFX(); resetFighterFX();
   camera = { z: 1, left: 0, top: 0 };
   gameState = State.FIGHT;
   if (isMobile()) document.getElementById('touchControls').style.display = 'block';

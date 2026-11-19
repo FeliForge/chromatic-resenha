@@ -4,6 +4,37 @@ const projectiles = [];
 let showHitboxes = false;
 window.addEventListener('keydown', e => { if (e.key === 'F2') showHitboxes = !showHitboxes; });
 
+// ---- ground cracks (Box-er slams etc.) ----
+const decals = [];
+function addCrack(x, size) {
+  const lines = [];
+  for (let i = 0; i < 7; i++) {
+    const dir = i < 4 ? 1 : -1, len = size * (0.4 + Math.random() * 0.7);
+    const pts = [[0, 0]]; let px = 0, py = 0;
+    for (let j = 0; j < 4; j++) { px += dir * len / 4; py += (Math.random() - 0.3) * 7; pts.push([px, Math.max(-2, py)]); }
+    lines.push(pts);
+  }
+  if (decals.length > 5) decals.shift();
+  decals.push({ x, life: 110, max: 110, lines });
+}
+function resetFighterFX() { projectiles.length = 0; decals.length = 0; }
+
+// ---- per-character impact particles ----
+function themeBurst(id, x, y, pw, dir) {
+  const a = dir > 0 ? 0 : Math.PI, n = 6 + pw * 5;
+  switch (id) {
+    case 0: burst(x, y, ['#ff6a00', '#ffd54a', '#fff'], n + 4, 9, { type: 'spark', dir: a, spread: 2.4, g: 0.3, life: 22 }); break;
+    case 1: burst(x, y, ['#e74c3c', '#c0392b', '#ff7961'], n + 4, 6, { type: 'dot', g: 0.35, size: 5, life: 30 }); break;
+    case 2: burst(x, y, ['#fff', '#f3d9b1', '#c68642'], n, 4.5, { type: 'petal', g: 0.1, size: 4, life: 28 }); break;
+    case 3: burst(x, y, ['#2ecc71', '#27ae60', '#fff'], n, 5.5, { type: 'petal', g: 0.25, size: 4, life: 30 }); break;
+    case 4: burst(x, y, ['#c9a06a', '#a67c4a', '#e8c898'], n + 6, 7, { type: 'dot', g: 0.4, size: 7, life: 32 }); dustPuff(x, y + 30, 3 + pw * 2, 0); break;
+    case 5: burst(x, y, ['#4fc3ff', '#ffe14a', '#fff'], n, 6, { type: 'star', g: 0.1, size: 4, life: 26 }); break;
+    case 6: burst(x, y, ['#e8c36a', '#d2a35f', '#fff'], n, 6, { type: 'spark', dir: a, spread: 2.2, g: 0.2 }); dustPuff(x, y + 20, 2, dir); break;
+    case 7: burst(x, y, ['#e0e0e0', '#ff4d4d', '#ffd54a'], n + 4, 9, { type: 'spark', dir: a, spread: 3, g: 0.2 });
+      if (pw >= 1) FX.rings.push({ x, y, r: 6, max: 60 + pw * 25, life: 12, t: 0, kind: 'ring', color: '#ffd54a' }); break;
+  }
+}
+
 function spawnProj(owner, spec, dirOverride) {
   const f = dirOverride || owner.facing;
   const w = spec.w || spec.r * 2, h = spec.h || spec.r * 2;
@@ -11,6 +42,7 @@ function spawnProj(owner, spec, dirOverride) {
   let y0 = owner.y + (spec.oy === undefined ? 0.4 : spec.oy) * owner.h;
   if (spec.ground) y0 = GROUND_Y - h / 2;
   if (projectiles.length > 24) projectiles.shift();
+  if (spec.kind === 'shock' && !dirOverride) addCrack(owner.cx + f * owner.w * 0.5, 70);
   projectiles.push({
     owner, x: x0, y: y0, vx: spec.vx * f, vy: spec.vy || 0, g: spec.g || 0, w, h,
     dmg: spec.dmg, knock: spec.knock, stun: spec.stun || 14, life: spec.life, kind: spec.kind,
@@ -20,6 +52,7 @@ function spawnProj(owner, spec, dirOverride) {
 
 function updateProjectiles(a, b) {
   const dt = 1;
+  for (let i = decals.length - 1; i >= 0; i--) if (--decals[i].life <= 0) decals.splice(i, 1);
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
     p.t += dt; p.life -= dt;
@@ -42,6 +75,12 @@ function updateProjectiles(a, b) {
 }
 
 function drawProjectiles() {
+  for (const d of decals) {
+    ctx.save(); ctx.translate(d.x, GROUND_Y + 8); ctx.globalAlpha = Math.min(1, d.life / 40) * 0.85;
+    ctx.strokeStyle = '#120a22'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const l of d.lines) { ctx.beginPath(); l.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); }
+    ctx.restore();
+  }
   for (const p of projectiles) {
     ctx.save(); ctx.translate(p.x, p.y);
     if (p.kind === 'tomato') {
@@ -73,12 +112,22 @@ function drawProjectiles() {
 
 // Generic hit resolution (melee boxes and projectiles share it)
 function dealHit(att, opp, b) {
-  const dmg = Math.max(1, Math.round(b.dmg * att.damageMul));
+  let dmg = Math.max(1, Math.round(b.dmg * att.damageMul));
   const dir = b.both ? (opp.cx > att.cx ? 1 : -1) : (b.dir || att.facing);
   const hx = (dir > 0 ? opp.x : opp.x + opp.w) - dir * 6, hy = opp.y + opp.h * 0.4;
-  const pw = dmg >= 12 ? 2 : dmg >= 6 ? 1 : 0;
+  const melee = !b.owner;
   att.hitConnected = true;
+
   if (opp.state === 'block') {
+    if (opp.blockT <= 7) {                                   // PARRY: block just before impact
+      opp.invuln = 14; opp.hitFlash = 0;
+      if (melee) { att.cancelMove(); att.state = 'hit'; att.stateTimer = 24; att.vx = -dir * 5; att.invuln = 0; }
+      hitSpark(hx, hy, 2, '#7fdcff', -dir); FX.hitstop = 9; flashScreen(0.4, '#7fdcff'); shakeScreen(5);
+      floatText(opp.cx, opp.y - 30, 'PARRY!', '#7fdcff', 28);
+      opp.state = 'idle'; opp.blockT = 99;
+      return;
+    }
+    const pw = dmg >= 12 ? 2 : dmg >= 6 ? 1 : 0;
     opp.hp -= Math.max(1, Math.round(dmg * 0.25));
     opp.vx += dir * 3.5; opp.state = 'block'; opp.stateTimer = 10; opp.trailDelay = 20;
     guardSpark(hx, hy, dir); FX.hitstop = 2 + pw; shakeScreen(2 + pw);
@@ -87,24 +136,35 @@ function dealHit(att, opp, b) {
     opp.hitFlash = 4; opp.trailDelay = 20;
     hitSpark(hx, hy, 0, '#ffd54a', dir); FX.hitstop = 2; shakeScreen(3);
   } else {
+    // counter hit: caught mid-attack; combo scaling keeps long strings fair
+    const counter = !!opp.mv;
+    if (att.comboTimer > 0 && att.combo >= 2) dmg = Math.max(1, Math.round(dmg * Math.max(0.5, 1 - 0.1 * (att.combo - 1))));
+    if (counter) dmg = Math.round(dmg * 1.25);
+    const pw = dmg >= 12 ? 2 : dmg >= 6 ? 1 : 0;
+    const stunScale = att.comboTimer > 0 ? Math.max(0.65, 1 - 0.07 * att.combo) : 1;
     opp.hp -= dmg;
     opp.vx += dir * b.knock;
     if (b.pull) opp.vx = -dir * b.pull;
     opp.vy = b.launch !== undefined ? b.launch : -4;
     opp.onGround = false;
+    const wasHit = opp.state === 'hit';
     opp.cancelMove();
-    opp.state = 'hit'; opp.stateTimer = b.stun || 15;
+    opp.state = 'hit'; opp.stateTimer = Math.round((b.stun || 15) * stunScale);
+    opp.kdPending = (wasHit && opp.kdPending) || (b.launch !== undefined && b.launch <= -8) || b.knock >= 11;
     opp.invuln = b.inv !== undefined ? b.inv : 6;
-    opp.hitCooldown = 20; opp.hitFlash = 5; opp.trailDelay = 28;
+    opp.hitCooldown = 20; opp.hitFlash = 5; opp.trailDelay = 28; opp.dashT = 0;
     hitSpark(hx, hy, pw, LOOKS[att.charId].fxColor || att.accent, dir);
-    FX.hitstop = 3 + pw * 3; shakeScreen(4 + pw * 5);
+    themeBurst(att.charId, hx, hy, pw, dir);
+    FX.hitstop = 3 + pw * 3 + (counter ? 3 : 0); shakeScreen(4 + pw * 5);
     FX.zoomPunch = Math.max(FX.zoomPunch, 0.02 + pw * 0.015);
     if (pw === 2) flashScreen(0.35, att.accent);
+    if (counter) { flashScreen(0.22, '#ff5a3c'); floatText(hx, hy - 80, 'COUNTER!', '#ff5a3c', 26); }
     att.combo++; att.comboTimer = 70;
-    if (att.combo >= 2) floatText(hx, hy - 50, att.combo + ' HITS!', '#ffe14a', 24);
+    // cornered victims push the attacker back instead of sliding away
+    if (melee && (opp.x <= 18 || opp.x + opp.w >= W - 18)) att.vx -= dir * Math.max(3, b.knock * 0.7);
   }
   if (opp.hp <= 0) {
-    opp.hp = 0; opp.state = 'dead'; opp.deadT = 0; opp.cancelMove();
+    opp.hp = 0; opp.state = 'dead'; opp.deadT = 0; opp.cancelMove(); opp.kdPending = false;
     opp.vy = -9; opp.vx = dir * 7; opp.onGround = false;
     flashScreen(0.8, '#fff'); shakeScreen(16);
   }
@@ -130,7 +190,9 @@ class Fighter {
     this.mv = null; this.mvT = 0; this.mvType = ''; this.mvKey = ''; this.chain = 0; this.chainKey = ''; this.chainT = 0;
     this.winIdx = -1; this.winHit = false; this.spawned = 0; this.vyDone = false; this.landed = false; this.hitConnected = false;
     this.cd = { attack: 0, strong: 0, special: 0 };
-    this.prev = { atk: false, jump: false };
+    this.prev = {};
+    this.buf = null; this.lastTap = { d: 0, t: 99 }; this.dashT = 0; this.dashDir = 0; this.dashCd = 0;
+    this.blockT = 0; this.kdPending = false; this.downT = 0; this.trail = []; this.ghosts = []; this.fc = 0;
     this.air = 1;
     // animation
     this.animT = 0; this.wph = 0; this.hitFlash = 0; this.deadT = 0;
@@ -149,8 +211,13 @@ class Fighter {
       if (this.vy > 4) { dustPuff(this.cx, GROUND_Y, this.vy > 9 ? 9 : 5, 0); if (this.state === 'dead') shakeScreen(4); }
       this.vy = 0; this.onGround = true; this.air = 1;
     } else this.onGround = false;
-    if (this.x < 14) this.x = 14;
-    if (this.x + this.w > W - 14) this.x = W - 14 - this.w;
+    let wall = 0;
+    if (this.x < 14) { this.x = 14; if (this.vx < -3.5) wall = -1; }
+    if (this.x + this.w > W - 14) { this.x = W - 14 - this.w; if (this.vx > 3.5) wall = 1; }
+    if (wall && (this.state === 'hit' || this.state === 'down' || this.state === 'dead')) {
+      this.vx = 0; shakeScreen(5); dustPuff(this.cx, this.y + this.h * 0.7, 5, -wall);
+      hitSpark(wall < 0 ? 14 : W - 14, this.y + this.h * 0.4, 0, '#fff', -wall);
+    }
   }
 
   hasArmor() { const m = this.mv; return !!(m && m.armor && this.mvT >= m.armor[0] && this.mvT <= m.armor[1]); }
@@ -168,15 +235,35 @@ class Fighter {
     this.stateTimer -= dt;
     this.chainT -= dt;
     this.cd.attack -= dt; this.cd.strong -= dt; this.cd.special -= dt;
+    this.dashCd -= dt; this.lastTap.t++; this.fc++;
 
     this.physics();
+    this.blockT = this.state === 'block' ? this.blockT + 1 : 0;
+    // swing trails / afterimages
+    for (let i = this.trail.length - 1; i >= 0; i--) if (--this.trail[i].life <= 0) this.trail.splice(i, 1);
+    for (let i = this.ghosts.length - 1; i >= 0; i--) if (--this.ghosts[i].life <= 0) this.ghosts.splice(i, 1);
+    if ((Math.abs(this.vx) > 7 || this.dashT > 0) && this.state !== 'hit' && this.state !== 'down' && (this.fc & 1) === 0) {
+      this.ghosts.push({ x: this.x, y: this.y, facing: this.facing, life: 12, P: Object.assign({}, this.pose()) });
+      if (this.ghosts.length > 6) this.ghosts.shift();
+      if (this.onGround) burst(this.cx - this.facing * this.w * 0.5, this.y + this.h * 0.5, '#fff', 1, 5, { type: 'spark', dir: this.facing > 0 ? Math.PI : 0, spread: 0.3, life: 10, size: 2, g: 0 });
+    }
     if (this.onGround) this.wph += Math.abs(this.vx) * 0.1 * dt;
     if (this.state === 'win') { if (this.onGround) this.vx *= 0.8; return; }
 
-    if (opponent && !this.mv && this.state !== 'hit') this.facing = opponent.cx > this.cx ? 1 : -1;
+    if (opponent && !this.mv && this.state !== 'hit' && this.state !== 'down') this.facing = opponent.cx > this.cx ? 1 : -1;
 
+    if (this.state === 'down') {                 // knockdown: lie, then rise invulnerable
+      this.downT -= dt; this.invuln = Math.max(this.invuln, 1); this.vx *= 0.8;
+      if (this.downT <= 0) { this.state = 'idle'; this.invuln = 8; dustPuff(this.cx, GROUND_Y, 4, 0); }
+      return;
+    }
     if (this.state === 'hit' || (this.state === 'block' && !this.isPlayer)) {
-      if (this.stateTimer <= 0) this.state = 'idle';
+      if (this.state === 'hit' && this.kdPending && this.stateTimer <= 0 && this.onGround) {
+        this.kdPending = false; this.state = 'down'; this.downT = 38; this.invuln = 38;
+        shakeScreen(5); dustPuff(this.cx, GROUND_Y, 8, 0);
+        return;
+      }
+      if (this.stateTimer <= 0 && !(this.kdPending && !this.onGround)) { this.state = 'idle'; this.kdPending = false; }
       return;
     }
     if (!canAct) {
@@ -199,15 +286,44 @@ class Fighter {
   }
 
   handleInput(inp) {
-    const pr = this.prev;
-    const pAtk = inp.atk && !pr.atk, pJump = inp.jump && !pr.jump;
-    pr.atk = !!inp.atk; pr.jump = !!inp.jump;
+    const pr = this.prev, edge = k => !!inp[k] && !pr[k];
+    const pAtk = edge('atk'), pStr = edge('strong'), pSp = edge('special'), pJump = edge('jump'), pL = edge('left'), pR = edge('right');
+    for (const k of ['atk', 'strong', 'special', 'jump', 'left', 'right']) pr[k] = !!inp[k];
+    // input buffer: a press is remembered for 10 frames so tight combos/cancels never drop
+    if (this.buf && --this.buf[1] <= 0) this.buf = null;
+    if (pAtk) this.buf = ['attack', 10]; else if (pStr) this.buf = ['strong', 10]; else if (pSp) this.buf = ['special', 10];
 
     if (this.mv) {
-      if (pAtk && this.mvType === 'attack' && this.canCancel()) this.tryAttack('attack', true);
+      if (this.buf) {
+        const t = this.buf[0], rank = { attack: 0, strong: 1, special: 2 };
+        if (t === this.mvType && this.canCancel()) { if (this.tryAttack(t, true)) this.buf = null; }
+        else if (this.hitConnected && rank[t] > rank[this.mvType] && this.mvT >= ((this.mv.win && this.mv.win[0].s) || 0)) {
+          const key = this.moveFor(t), m = this.def.moves[key];
+          if (m && (Array.isArray(m) || this.cd[t] <= 0)) {           // on-hit cancel: normal -> strong -> special
+            this.cancelMove(); this.tryAttack(t); this.buf = null;
+            FX.rings.push({ x: this.cx, y: this.y + this.h * 0.45, r: 8, max: 54, life: 10, t: 0, kind: 'ring', color: this.accent });
+          }
+        }
+      }
       return;
     }
-    if (inp.block && this.onGround) { this.state = 'block'; this.vx *= 0.3; return; }
+    if (inp.block && this.onGround) { this.state = 'block'; this.vx *= 0.3; this.dashT = 0; return; }
+
+    // double-tap left/right = dash (back-dash is briefly invulnerable)
+    const tap = d => {
+      if (this.lastTap.d === d && this.lastTap.t < 15 && this.onGround && this.dashCd <= 0) {
+        this.dashT = 11; this.dashDir = d; this.dashCd = 26; this.lastTap = { d: 0, t: 99 };
+        if (d !== this.facing) this.invuln = Math.max(this.invuln, 9);
+        dustPuff(this.cx, GROUND_Y, 5, -d);
+      } else this.lastTap = { d, t: 0 };
+    };
+    if (pL) tap(-1); if (pR) tap(1);
+    if (this.dashT > 0) {
+      this.dashT--; this.vx = this.dashDir * this.speed * 2.6; this.state = 'walk';
+      if (!this.buf) return;
+      this.dashT = 0;
+    }
+
     if (inp.left) { this.vx = -this.speed; this.state = 'walk'; }
     else if (inp.right) { this.vx = this.speed; this.state = 'walk'; }
     else if (this.onGround) this.state = 'idle';
@@ -215,9 +331,8 @@ class Fighter {
     if (inp.jump && this.onGround) { this.vy = -this.jumpForce; this.onGround = false; this.state = 'jump'; dustPuff(this.cx, GROUND_Y, 6, 0); }
     else if (pJump && !this.onGround && this.def.doubleJump && this.air > 0) { this.air--; this.vy = -this.jumpForce * 0.85; this.state = 'jump'; dustPuff(this.cx, this.bottom, 5, 0); }
 
-    if (inp.atk) this.tryAttack('attack');
-    else if (inp.strong) this.tryAttack('strong');
-    else if (inp.special) this.tryAttack('special');
+    if (this.buf) { if (this.tryAttack(this.buf[0])) this.buf = null; }
+    else if (inp.atk) this.tryAttack('attack');
   }
 
   moveFor(type) {
@@ -227,7 +342,7 @@ class Fighter {
 
   canCancel() {
     const m = this.mv; if (!m || !m.win) return false;
-    const key = this.moveFor('attack');
+    const key = this.moveFor(this.mvType);
     return key === this.mvKey && Array.isArray(this.def.moves[key]) && this.mvT >= m.win[m.win.length - 1].e;
   }
 
@@ -238,6 +353,7 @@ class Fighter {
     if (Array.isArray(m)) {
       if (cancel) { idx = this.chain + 1; if (idx >= m.length) return false; }
       else if (this.chainT > 0 && this.chainKey === key) { idx = this.chain + 1; if (idx >= m.length) idx = 0; }
+      if (idx === 0 && !cancel && this.cd[type] > 0) return false;
       mv = m[idx];
     } else if (this.cd[type] > 0) return false;
     this.startMove(type, key, mv, idx);
@@ -250,6 +366,11 @@ class Fighter {
     this.vyDone = false; this.landed = false; this.attackBox = null; this.chainT = 0; this.hitConnected = false;
     if (mv.cd) this.cd[type] = mv.cd;
     if (mv.hang !== undefined && !this.onGround) this.vy = mv.hang;
+    if (mv.title) {
+      floatText(this.cx, this.y - 24, mv.title, this.accent, 26);
+      flashScreen(0.16, this.accent); FX.zoomPunch = Math.max(FX.zoomPunch, 0.03);
+      FX.rings.push({ x: this.cx, y: this.y + this.h * 0.55, r: 10, max: 90, life: 14, t: 0, kind: 'ring', color: this.accent });
+    }
   }
 
   endMove() {
@@ -275,12 +396,17 @@ class Fighter {
       shakeScreen(9); FX.hitstop = Math.max(FX.hitstop, 3);
       if (mv.landFx) for (const s of mv.landFx) { spawnProj(this, s, 1); spawnProj(this, s, -1); }
       dustPuff(this.cx, GROUND_Y, 10, 0);
+      if (mv.landFx) addCrack(this.cx, 90);
     }
     if (!this.landed && mv.win) {
       let idx = -1;
       for (let i = 0; i < mv.win.length; i++) if (el >= mv.win[i].s && el < mv.win[i].e) { idx = i; break; }
       if (idx !== this.winIdx) { this.winIdx = idx; this.winHit = false; }
       this.attackBox = (idx >= 0 && !this.winHit) ? this.buildBox(mv, mv.win[idx]) : null;
+      if (idx >= 0) {
+        const w = mv.win[idx], body = w.body !== undefined ? w.body : mv.body, both = w.both !== undefined ? w.both : mv.both;
+        if (!body && !both) { const sw = this.buildBox(mv, w); this.trail.push({ x: sw.x, y: sw.y, w: sw.w, h: sw.h, life: 7, max: 7 }); }
+      }
     }
   }
 
@@ -307,7 +433,13 @@ class Fighter {
   ai(opp) {
     if (!opp) return;
     if (this.mv) {
-      if (this.mvType === 'attack' && this.canCancel() && Math.random() < 0.3 && this.gapTo(opp) < 80) this.tryAttack('attack', true);
+      const g = this.gapTo(opp);
+      if (this.canCancel() && Math.random() < 0.3 && g < 90) this.tryAttack(this.mvType, true);
+      else if (this.hitConnected && this.mvType !== 'special' && Math.random() < 0.12) {
+        const t = this.mvType === 'attack' ? (Math.random() < 0.5 ? 'strong' : 'special') : 'special';
+        const key = this.moveFor(t), m = this.def.moves[key];
+        if (m && !Array.isArray(m) && this.cd[t] <= 0 && m.ai && g >= m.ai[0] && g <= m.ai[1]) { this.cancelMove(); this.tryAttack(t); }
+      }
       return;
     }
     const gap = this.gapTo(opp), dir = opp.cx > this.cx ? 1 : -1, pref = this.def.pref;
@@ -366,6 +498,20 @@ class Fighter {
 
   draw() {
     const P = this.pose();
+    // swing trails
+    for (const t of this.trail) {
+      const k = t.life / t.max;
+      ctx.save(); ctx.globalAlpha = k * 0.5; ctx.fillStyle = this.accent;
+      ctx.beginPath(); ctx.ellipse(t.x + t.w / 2, t.y + t.h / 2, t.w / 2, Math.max(4, t.h / 2.6), 0, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = k * 0.7; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
+    // afterimages
+    for (const g of this.ghosts) {
+      ctx.save(); ctx.globalAlpha = (g.life / 12) * 0.35;
+      ctx.translate(g.x + this.w / 2, g.y + this.h); ctx.scale(g.facing * SPR_S, SPR_S);
+      drawSprite(ctx, this.charId, g.P); ctx.restore();
+    }
     // ground shadow
     const air = Math.max(0, GROUND_Y - this.bottom);
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -373,18 +519,22 @@ class Fighter {
 
     ctx.save();
     ctx.translate(this.cx, this.bottom);
-    if (this.state === 'dead') {
-      const k = Math.min(1, this.deadT / 16);
+    if (this.state === 'dead' || this.state === 'down') {
+      let k;
+      if (this.state === 'dead') k = Math.min(1, this.deadT / 16);
+      else { const t = this.downT; k = Math.max(0, Math.min(1, t > 30 ? (38 - t) / 8 : t < 12 ? t / 12 : 1)); }
       ctx.rotate(-this.facing * (Math.PI / 2) * k);
       ctx.translate(0, -this.w * 0.25 * k);
       P.ps = 'dead';
     }
     ctx.scale(this.facing * SPR_S, SPR_S);
+    if (this.invuln > 2 && this.state === 'idle' && (this.fc & 2)) ctx.globalAlpha = 0.6;   // wake-up / dodge flicker
     drawSprite(ctx, this.charId, P);
     ctx.restore();
 
     if (this.state === 'block') {
-      ctx.strokeStyle = 'rgba(0,255,255,0.8)'; ctx.lineWidth = 3;
+      const parry = this.blockT <= 7;
+      ctx.strokeStyle = parry ? 'rgba(255,255,255,0.95)' : 'rgba(0,255,255,0.8)'; ctx.lineWidth = parry ? 5 : 3;
       ctx.beginPath(); ctx.ellipse(this.cx, this.y + this.h / 2, this.w / 2 + 12, this.h / 2 + 8, 0, 0, 6.28); ctx.stroke();
     }
     if (showHitboxes) {
