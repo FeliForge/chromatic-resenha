@@ -170,6 +170,63 @@ function dealHit(att, opp, b) {
   }
 }
 
+// ---- Victory choreography: body transform + one-shot FX per character ----
+const WIN_LINES = ['FORGED!', 'TOMATASTIC!', 'WOOF!', 'GOOOL!', 'CRUSHED!', 'SKY HIGH!', 'YEEHAW!', 'CHAMPION!'];
+function winXform(f, t) {
+  const o = f._wx, fc = f.facing, PI = Math.PI;
+  o.dy = 0; o.rot = 0; o.sx = 1; o.sy = 1;
+  switch (f.charId) {
+    case 0: o.dy = -Math.abs(Math.sin(t * 0.11)) * 12; o.rot = Math.sin(t * 0.22) * 0.05; break;
+    case 1: { const c = t % 150; if (c < 40) o.sx = Math.cos(c / 40 * PI * 2);            // pirouette
+      o.dy = -Math.abs(Math.sin(t * 0.13)) * 22; const q = Math.cos(t * 0.26); o.sy = 1 + 0.07 * q; o.sx *= 1 - 0.07 * q; break; }
+    case 2: { const c = t % 170; if (c < 36) { o.dy = -Math.sin(c / 36 * PI) * 80; o.rot = -fc * (c / 36) * PI * 2; }   // backflip
+      else o.dy = -Math.abs(Math.sin(t * 0.2)) * 12; break; }
+    case 3: o.dy = -Math.abs(Math.sin(t * 0.14)) * 10; o.rot = Math.sin(t * 0.14) * 0.06; break;
+    case 4: { const c = t % 72; o.dy = c < 22 ? -Math.sin(c / 22 * PI) * 24 : 0; if (c >= 22 && c < 30) { o.sy = 0.9; o.sx = 1.1; } break; }   // stomp
+    case 5: { const c = t % 96; if (c < 64) { o.dy = -Math.sin(c / 64 * PI) * 120; o.rot = -fc * (c / 64) * PI * 4; }   // double flip
+      else if (c < 74) { o.sy = 0.9; o.sx = 1.08; } break; }
+    case 6: o.rot = Math.sin(t * 0.06) * 0.04 - 0.03; o.dy = -Math.abs(Math.sin(t * 0.1)) * 4; break;
+    case 7: o.dy = -Math.abs(Math.sin(t * 0.17)) * 9; o.rot = Math.sin(t * 0.17) * 0.03; break;
+  }
+  return o;
+}
+function winFx(f, t) {
+  const top = f.y - 20;
+  if (t === 1) {   // confetti burst + shout
+    burst(f.cx, f.y + f.h * 0.3, [f.accent, '#fff', '#ffe14a', '#4fc3ff'], 34, 9, { type: 'star', dir: -Math.PI / 2, spread: 2.8, g: 0.25, life: 55, size: 4 });
+    flashScreen(0.25, f.accent); floatText(f.cx, top - 20, WIN_LINES[f.charId], f.accent, 30);
+    FX.rings.push({ x: f.cx, y: f.y + f.h * 0.5, r: 10, max: 120, life: 18, t: 0, kind: 'ring', color: f.accent });
+  }
+  switch (f.charId) {
+    case 0: if (t % 6 === 0) burst(f.cx + f.facing * 14, f.y + f.h * 0.05, ['#ff6a00', '#ffd54a', '#fff'], 3, 6, { type: 'spark', dir: -Math.PI / 2, spread: 1.6, g: 0.2, life: 20, size: 3 }); break;
+    case 1: if (t % 150 === 40) { burst(f.cx, f.y + f.h * 0.5, ['#e74c3c', '#ff7961'], 12, 6, { type: 'dot', g: 0.3, size: 5, life: 26 }); floatText(f.cx, top, 'SPLAT!', '#ff7961', 24); } break;
+    case 2: if (t % 170 === 36) { dustPuff(f.cx, GROUND_Y, 8, 0); floatText(f.cx, top, 'WOOF!', '#f1c40f', 28); } break;
+    case 3: if (t % 140 === 70) floatText(f.cx, top, 'GOOOL!', '#fff', 26); break;
+    case 4: if (t % 72 === 22) { shakeScreen(6); dustPuff(f.cx, GROUND_Y, 10, 0); addCrack(f.cx, 80); FX.rings.push({ x: f.cx, y: GROUND_Y - 4, r: 10, max: 90, life: 12, t: 0, kind: 'ring', color: '#f39c12' }); } break;
+    case 5: if (t % 96 === 64) { dustPuff(f.cx, GROUND_Y, 8, 0); shakeScreen(2); burst(f.cx, GROUND_Y - 6, ['#4fc3ff', '#ffe14a'], 8, 5, { type: 'star', dir: -Math.PI / 2, spread: 2, life: 24 }); } break;
+    case 6: if (t % 120 === 60) floatText(f.cx, top, 'YEEHAW!', '#d35400', 26); break;
+    case 7: if (t % 130 === 90) { flashScreen(0.18, '#ffd54a'); FX.rings.push({ x: f.cx, y: f.y + f.h * 0.3, r: 8, max: 100, life: 14, t: 0, kind: 'ring', color: '#ffd54a' }); floatText(f.cx, top, 'K.O.!', '#ff4d4d', 28); } break;
+  }
+}
+// props that belong to the celebration (drawn in world space, over the sprite)
+function drawWinProps(f, t) {
+  const fc = f.facing;
+  if (f.charId === 3) {           // juggling the ball
+    const k = (t % 44) / 44, bx = f.cx + fc * Math.sin(t * 0.07) * 30, by = f.y - 16 - Math.sin(k * Math.PI) * 70, r = 11;
+    ctx.save(); ctx.translate(bx, by); ctx.rotate(t * 0.2);
+    ctx.fillStyle = '#f6f6f6'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.28); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#1c1c20'; ctx.beginPath(); for (let i = 0; i < 5; i++) { const a = i * 1.2566; ctx.lineTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5); } ctx.closePath(); ctx.fill();
+    ctx.restore();
+  } else if (f.charId === 6) {    // twirling lasso
+    const hx = f.cx + fc * 12, hy = f.y - 10;
+    ctx.save(); ctx.translate(hx, hy - 12); ctx.rotate(Math.sin(t * 0.12) * 0.15);
+    ctx.strokeStyle = '#8b5a2b'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, 12); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.strokeStyle = '#d2a35f'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.ellipse(0, -6, 38, 7 + 4 * Math.abs(Math.sin(t * 0.3)), 0, 0, 6.28); ctx.stroke();
+    ctx.globalAlpha = 0.35; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, -6, 42, 9, 0, t * 0.3, t * 0.3 + 2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
 class Fighter {
   constructor(charId, side, isPlayer) {
     const c = CHARACTERS[charId], d = CHAR_DEF[charId];
@@ -192,7 +249,7 @@ class Fighter {
     this.cd = { attack: 0, strong: 0, special: 0 };
     this.prev = {};
     this.buf = null; this.lastTap = { d: 0, t: 99 }; this.dashT = 0; this.dashDir = 0; this.dashCd = 0;
-    this.blockT = 0; this.kdPending = false; this.downT = 0; this.trail = []; this.ghosts = []; this.fc = 0;
+    this.blockT = 0; this.kdPending = false; this.downT = 0; this.trail = []; this.ghosts = []; this.fc = 0; this.winT = 0; this._wx = { dy: 0, rot: 0, sx: 1, sy: 1 };
     this.air = 1;
     // animation
     this.animT = 0; this.wph = 0; this.hitFlash = 0; this.deadT = 0;
@@ -248,7 +305,7 @@ class Fighter {
       if (this.onGround) burst(this.cx - this.facing * this.w * 0.5, this.y + this.h * 0.5, '#fff', 1, 5, { type: 'spark', dir: this.facing > 0 ? Math.PI : 0, spread: 0.3, life: 10, size: 2, g: 0 });
     }
     if (this.onGround) this.wph += Math.abs(this.vx) * 0.1 * dt;
-    if (this.state === 'win') { if (this.onGround) this.vx *= 0.8; return; }
+    if (this.state === 'win') { if (this.onGround) this.vx *= 0.8; this.winT += dt; winFx(this, Math.round(this.winT)); return; }
 
     if (opponent && !this.mv && this.state !== 'hit' && this.state !== 'down') this.facing = opponent.cx > this.cx ? 1 : -1;
 
@@ -498,6 +555,7 @@ class Fighter {
 
   draw() {
     const P = this.pose();
+    const wx = this.state === 'win' ? winXform(this, this.winT) : null;
     // swing trails
     for (const t of this.trail) {
       const k = t.life / t.max;
@@ -513,12 +571,13 @@ class Fighter {
       drawSprite(ctx, this.charId, g.P); ctx.restore();
     }
     // ground shadow
-    const air = Math.max(0, GROUND_Y - this.bottom);
+    const air = Math.max(0, GROUND_Y - this.bottom) - (wx ? wx.dy : 0);
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(this.cx, GROUND_Y + 3, this.w * 0.6 * (1 - Math.min(0.5, air / 400)), 6, 0, 0, 6.28); ctx.fill();
 
     ctx.save();
     ctx.translate(this.cx, this.bottom);
+    if (wx) { ctx.translate(0, wx.dy - this.h / 2); ctx.rotate(wx.rot); ctx.translate(0, this.h / 2); }
     if (this.state === 'dead' || this.state === 'down') {
       let k;
       if (this.state === 'dead') k = Math.min(1, this.deadT / 16);
@@ -527,11 +586,12 @@ class Fighter {
       ctx.translate(0, -this.w * 0.25 * k);
       P.ps = 'dead';
     }
-    ctx.scale(this.facing * SPR_S, SPR_S);
+    ctx.scale(this.facing * SPR_S * (wx ? wx.sx : 1), SPR_S * (wx ? wx.sy : 1));
     if (this.invuln > 2 && this.state === 'idle' && (this.fc & 2)) ctx.globalAlpha = 0.6;   // wake-up / dodge flicker
     drawSprite(ctx, this.charId, P);
     ctx.restore();
 
+    if (wx) drawWinProps(this, this.winT);
     if (this.state === 'block') {
       const parry = this.blockT <= 7;
       ctx.strokeStyle = parry ? 'rgba(255,255,255,0.95)' : 'rgba(0,255,255,0.8)'; ctx.lineWidth = parry ? 5 : 3;

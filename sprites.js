@@ -26,6 +26,7 @@ function bp(P) {
     case 'hit': B.lean = -0.3; B.la = 0.2; B.lb = -0.3; break;
     case 'block': B.sq = 5; B.lean = 0.12; B.la = 0.45; B.lb = -0.45; break;
     case 'dead': B.lean = -0.2; B.la = 0.3; B.lb = -0.3; break;
+    case 'win': B.bob = Math.sin(P.t * 0.2) * 1.5; B.lean = -0.04; break;
   }
   return B;
 }
@@ -81,7 +82,9 @@ SPR[0] = function (P) {
   if (P.ps === 'hit') { na1 = 1.9; na2 = 1.2; fa1 = 1.5; fa2 = 0.8; }
   else if (P.ps === 'block') { na1 = 1.1; na2 = 3.0; fa1 = 1.0; fa2 = 3.0; }
   else if (P.ps === 'jump') { na1 = 1.2; na2 = 2.2; fa1 = 0.8; fa2 = 2.6; }
+  else if (P.ps === 'win') { const s = Math.sin(P.t * 0.22); na1 = 2.5 + s * 0.5; na2 = 3.0; fa1 = 2.5 - s * 0.5; fa2 = 3.0; }
   let spk = 0, lean = B.lean;
+  if (P.ps === 'win' && Math.sin(P.t * 0.22) > 0.7) spk = 1;
   if (at) {
     const punchN = () => { na1 = lerp(0.6, 1.5, ex) - 0.5 * bk; na2 = lerp(2.5, 1.57, ex) + 0.4 * bk; };
     const punchF = () => { fa1 = lerp(0.3, 1.5, ex) - 0.5 * bk; fa2 = lerp(2.7, 1.57, ex) + 0.4 * bk; };
@@ -175,6 +178,7 @@ SPR[1] = function (P) {
     if (P.ps === 'hit') { a1 = 2; a2 = 1.6; }
     else if (P.ps === 'block') { a1 = 1.6; a2 = 1.6; }
     else if (P.ps === 'jump') { a1 = 2.3; a2 = 2; }
+    else if (P.ps === 'win') { const s = Math.sin(P.t * 0.3); a1 = 2.8 + s * 0.4; a2 = 2.6 - s * 0.4; }
     let tom = false;
     if (a === 'slap' || a === 'slap2') { a1 = lerp(0.5, 1.6, ex) - bk * 0.8; a2 = 0.3; if (a === 'slap2') a2 = lerp(0.5, 1.6, ex) - bk * 0.8; }
     else if (a === 'throw') { const up = ex > 0 ? 0 : bk; a1 = ex > 0 ? lerp(2.8, 1.3, ex) : lerp(0.5, 2.8, up); tom = ex === 0 && P.el < 12 && P.el > 1; }
@@ -227,7 +231,7 @@ SPR[2] = function (P) {
   G.save(); G.translate(24 + lunge, -30 + (P.ps === 'hit' ? 4 : 0));
   G.rotate(P.ps === 'hit' ? -0.4 : (at ? 0.1 : -0.05));
   ln(-6, 2, -14, 8, 9, white, null);
-  const open = at && (a !== 'dash' || ex > 0) && a !== '' ? Math.max(ex, 0.3) : (run ? 0.35 : 0.2);
+  const open = P.ps === 'win' ? 0.8 : at && (a !== 'dash' || ex > 0) && a !== '' ? Math.max(ex, 0.3) : (run ? 0.35 : 0.2);
   // lower jaw
   poly([2, 2, 18, 3 + open * 6, 16, 8 + open * 7, 0, 7], white, out);
   if (open > 0.28) { poly([6, 3.5, 8, 6.5, 10, 3.6], '#fff', null); poly([12, 3.8, 14, 7, 16, 4], '#fff', null); ell(10, 7 + open * 3, 5, 2.5, '#e8788c', null); }
@@ -238,7 +242,7 @@ SPR[2] = function (P) {
   ell(3, -8, 3.5, 5, brown, out, -0.5);
   disc(21, -1, 3.4, '#111', null);
   disc(6, -3, 2.3, '#111', null); disc(6.7, -3.7, 0.8, '#fff', null);
-  if (run || (!at && P.ps === 'idle' && Math.sin(P.t * 0.12) > 0)) ell(13, 8, 3, 4, '#e8788c', null);
+  if (run || P.ps === 'win' || (!at && P.ps === 'idle' && Math.sin(P.t * 0.12) > 0)) ell(13, 8, 3, 4, '#e8788c', null);
   G.restore();
   if (a === 'dash' || a === 'frenzy') { ln(-34, -34, -50, -34, 2, 'rgba(255,255,255,0.7)', null); ln(-34, -22, -56, -22, 2, 'rgba(255,255,255,0.7)', null); }
   G.restore();
@@ -267,7 +271,7 @@ SPR[3] = function (P) {
   G.rotate(rot);
   // far arm
   let aa1 = 0.5 + B.la * 0.4, ab1 = 0.4;
-  if (P.ps === 'hit') { aa1 = 2.1; ab1 = 1.7; } else if (P.ps === 'block') { aa1 = 1.5; ab1 = 1.5; } else if (P.ps === 'jump') { aa1 = 2.4; ab1 = 2.0; }
+  if (P.ps === 'hit') { aa1 = 2.1; ab1 = 1.7; } else if (P.ps === 'block') { aa1 = 1.5; ab1 = 1.5; } else if (P.ps === 'jump') { aa1 = 2.4; ab1 = 2.0; } else if (P.ps === 'win') { aa1 = 2.8; ab1 = 2.8 + Math.sin(P.t * 0.28) * 0.3; }
   if (kicking) { aa1 = 2.2; ab1 = -0.4; }
   ln(-14, 4, -14 + Math.sin(ab1) * 14, 4 + Math.cos(ab1) * 14, 5, green, out);
   // ball body
@@ -285,7 +289,7 @@ SPR[3] = function (P) {
   if (P.ps === 'hit') ell(11, 8, 4, 3, '#222', null); else { G.beginPath(); G.arc(11, 4, 5, 0.2, 2.9); G.strokeStyle = C(out); G.lineWidth = 2; G.stroke(); }
   // near arm
   let na = 0.3 - B.la * 0.4;
-  if (P.ps === 'hit') na = 1.8; else if (P.ps === 'block') na = 1.7; else if (P.ps === 'jump') na = 2.2;
+  if (P.ps === 'hit') na = 1.8; else if (P.ps === 'block') na = 1.7; else if (P.ps === 'jump') na = 2.2; else if (P.ps === 'win') na = 2.7 - Math.sin(P.t * 0.28) * 0.3;
   if (kicking) na = 1.2 + ex * 0.6;
   const hx = 14 + Math.sin(na) * 14, hyy = 4 + Math.cos(na) * 14;
   ln(14, 4, hx, hyy, 5.5, green, out); disc(hx, hyy, 5, '#fff', out);
@@ -316,7 +320,7 @@ SPR[4] = function (P) {
   // arms behind box (far)
   const gl = (sx0, sy0, a1, l, wr) => { const hx = sx0 + Math.sin(a1) * l, hy2 = sy0 + Math.cos(a1) * l; ln(sx0, sy0, hx, hy2, 9, '#c89a6a', out); ell(hx + 2, hy2, wr, wr * 0.9, glove, '#6b0f0f'); rect(hx - 7, hy2 - 3, 4, 6, '#fff', null); return hx; };
   let fa = 0.5, na = 0.4, len = 22, wr = 13;
-  if (P.ps === 'hit') { fa = 2; na = 1.6; } else if (P.ps === 'block') { fa = 2.6; na = 2.4; } else if (P.ps === 'jump') { fa = 2.2; na = 2; }
+  if (P.ps === 'hit') { fa = 2; na = 1.6; } else if (P.ps === 'block') { fa = 2.6; na = 2.4; } else if (P.ps === 'jump') { fa = 2.2; na = 2; } else if (P.ps === 'win') { fa = 2.9; na = 2.9 + Math.sin(P.t * 0.25) * 0.15; len = 28; wr = 16; }
   if (a === 'punch') { na = lerp(0.4, 1.57, ex) - 0.9 * bk; len = lerp(22, 38, ex); wr = lerp(13, 17, ex); }
   else if (a === 'slam') { const up = ex > 0 ? 0 : bk; na = fa = ex > 0 ? lerp(0.5, 1.3, ex) : lerp(0.5, 3.0, up); len = 30; wr = 17; }
   else if (a === 'bodyslam') { na = fa = 2.4; len = 26; }
@@ -369,6 +373,7 @@ SPR[5] = function (P) {
   if (P.ps === 'jump') { a1 = 2.6; a2 = 2.2; }
   if (P.ps === 'hit') { a1 = 2; a2 = 1.5; }
   if (P.ps === 'block') { a1 = 1.6; a2 = 1.6; }
+  if (P.ps === 'win') { a1 = 2.9; a2 = 2.5 + Math.sin(P.t * 0.3) * 0.5; }
   if (a === 'rising') { a1 = a2 = lerp(0.5, 3.1, Math.max(ex, bk)); }
   else if (a === 'spin') { a1 = 1.57; a2 = -1.57; }
   else if (/airkick/.test(a)) { a1 = 1.6; a2 = 2.4; }
@@ -403,7 +408,7 @@ SPR[6] = function (P) {
   leg(-4, B.lb, '#111826');
   let lean = B.lean;
   let a1 = 0.25, a2 = 0.1, whip = 0, ty = -30, curl = 0;
-  if (P.ps === 'hit') { a1 = 1.9; a2 = 1.6; } else if (P.ps === 'block') { a1 = 1.7; a2 = 1.7; } else if (P.ps === 'jump') { a1 = 2.2; a2 = 1.9; }
+  if (P.ps === 'hit') { a1 = 1.9; a2 = 1.6; } else if (P.ps === 'block') { a1 = 1.7; a2 = 1.7; } else if (P.ps === 'jump') { a1 = 2.2; a2 = 1.9; } else if (P.ps === 'win') { a1 = 2.9 + Math.sin(P.t * 0.3) * 0.12; lean -= 0.05; }
   if (a === 'whip') { whip = ex; a1 = lerp(0.25, 1.5, ex) + (bk > 0 ? 1.4 * bk : 0); curl = bk; lean += 0.1 * ex - 0.1 * bk; ty = -42; }
   else if (a === 'lasso') { a1 = ex > 0 ? 1.4 : lerp(0.25, 3.0, bk); lean += 0.12 * ex; }
   else if (a === 'lashes') {
@@ -471,6 +476,10 @@ SPR[7] = function (P) {
   if (P.ps === 'jump') { na1 = 2.3; fa1 = 1.8; } if (P.ps === 'hit') { na1 = 2; fa1 = 1.4; }
   if (P.ps === 'block') { na1 = fa1 = 1.7; }
   let lean = B.lean;
+  if (P.ps === 'win') {
+    if (P.t % 130 < 90) { const s = Math.sin(P.t * 0.4); na1 = 1.25 + s * 0.35; fa1 = 1.25 - s * 0.35; hs = 1 + 0.25 * Math.abs(s); }
+    else { na1 = fa1 = 2.8; hs = 1.35; glow = 0.6; }
+  }
   if (P.ps === 'walk') { na1 = 0.7 + B.la * 0.5; fa1 = -0.5 - B.la * 0.5; }
   if (at) {
     if (a === 'jab') { na1 = lerp(0.7, 1.55, ex) - 0.6 * bk; hs = 1 + 0.5 * ex; lean += 0.1 * ex; }
