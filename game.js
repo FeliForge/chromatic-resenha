@@ -22,7 +22,7 @@ resize();
 // ========== CHARACTERS ==========
 const CHARACTERS = [
   {
-    id: 0, name: 'The Forge', color: '#888', accent: '#ff6600',
+    id: 0, name: 'The Forge', color: '#54545c', accent: '#ff7a1a',
     speed: 4.2, jump: 14, hp: 100, damageMul: 1.0,
     specialty: 'fast', desc: 'Forger - Quick strikes'
   },
@@ -32,7 +32,7 @@ const CHARACTERS = [
     specialty: 'balanced', desc: 'Versatile tomato'
   },
   {
-    id: 2, name: 'Doggie', color: '#a0522d', accent: '#f1c40f',
+    id: 2, name: 'Doggie', color: '#fbf5e6', accent: '#6a3f22',
     speed: 5.5, jump: 15, hp: 90, damageMul: 0.9,
     specialty: 'speed', desc: 'Extremely fast dog'
   },
@@ -42,22 +42,22 @@ const CHARACTERS = [
     specialty: 'ranged', desc: 'Long-range soccer'
   },
   {
-    id: 4, name: 'Box-er', color: '#8e44ad', accent: '#f39c12',
-    speed: 2.2, jump: 10, hp: 140, damageMul: 1.6,
+    id: 4, name: 'Box-er', color: '#b78a5d', accent: '#d62d2d',
+    speed: 2.2, jump: 10, hp: 130, damageMul: 1.45,
     specialty: 'tank', desc: 'Slow heavy damage'
   },
   {
-    id: 5, name: 'Jumper', color: '#3498db', accent: '#e67e22',
-    speed: 3.6, jump: 18, hp: 95, damageMul: 1.1,
+    id: 5, name: 'Jumper', color: '#91cc27', accent: '#c64916',
+    speed: 3.8, jump: 18, hp: 112, damageMul: 1.3,
     specialty: 'air', desc: 'Aerial specialist'
   },
   {
-    id: 6, name: 'Ranch-Man', color: '#2980b9', accent: '#d35400',
+    id: 6, name: 'Ranch-Man', color: '#26549e', accent: '#7d4421',
     speed: 3.4, jump: 12, hp: 105, damageMul: 1.15,
     specialty: 'whip', desc: 'Cowboy whip master'
   },
   {
-    id: 7, name: 'Iron Fist', color: '#2c3e50', accent: '#c0392b',
+    id: 7, name: 'Iron Fist', color: '#f08d82', accent: '#f5d86a',
     speed: 3.0, jump: 11, hp: 120, damageMul: 1.35,
     specialty: 'close', desc: 'Iron fists short range'
   }
@@ -107,273 +107,7 @@ function bindTouch(id, key) {
   bindTouch('btn'+n, n.toLowerCase());
 });
 
-// ========== FIGHTER CLASS ==========
-class Fighter {
-  constructor(charId, side, isPlayer) {
-    const c = CHARACTERS[charId];
-    this.charId = charId;
-    this.name = c.name;
-    this.color = c.color;
-    this.accent = c.accent;
-    this.speed = c.speed;
-    this.jumpForce = c.jump;
-    this.maxHp = c.hp;
-    this.hp = c.hp;
-    this.damageMul = c.damageMul;
-    this.specialty = c.specialty;
-    this.side = side; // 1 or 2
-    this.isPlayer = isPlayer;
-    this.x = side === 1 ? canvas.width * 0.25 : canvas.width * 0.75;
-    this.y = 0;
-    this.vx = 0;
-    this.vy = 0;
-    this.facing = side === 1 ? 1 : -1;
-    this.onGround = false;
-    this.w = 40;
-    this.h = 70;
-    this.state = 'idle'; // idle, walk, jump, attack, strong, special, block, hit, dead
-    this.stateTimer = 0;
-    this.attackBox = null;
-    this.hitCooldown = 0;
-    this.combo = 0;
-    this.invuln = 0;
-  }
-
-  get cx() { return this.x + this.w/2; }
-  get cy() { return this.y + this.h/2; }
-  get bottom() { return this.y + this.h; }
-
-  update(dt, opponent, input) {
-    if (this.state === 'dead') return;
-
-    this.hitCooldown = Math.max(0, this.hitCooldown - dt);
-    this.invuln = Math.max(0, this.invuln - dt);
-    this.stateTimer -= dt;
-
-    // Gravity
-    this.vy += 0.7;
-    this.y += this.vy;
-    this.x += this.vx;
-    this.vx *= 0.85;
-
-    // Ground
-    const groundY = canvas.height - 80;
-    if (this.bottom > groundY) {
-      this.y = groundY - this.h;
-      this.vy = 0;
-      this.onGround = true;
-    } else {
-      this.onGround = false;
-    }
-
-    // Walls
-    if (this.x < 20) this.x = 20;
-    if (this.x + this.w > canvas.width - 20) this.x = canvas.width - 20 - this.w;
-
-    // Face opponent
-    if (opponent && this.state !== 'attack' && this.state !== 'strong' && this.state !== 'special') {
-      this.facing = opponent.x > this.x ? 1 : -1;
-    }
-
-    // AI or input
-    if (this.state === 'hit' || this.state === 'block') {
-      if (this.stateTimer <= 0) this.state = 'idle';
-      return;
-    }
-
-    if (this.isPlayer) {
-      this.handleInput(input);
-    } else {
-      this.ai(opponent);
-    }
-
-    // Attack resolution
-    if (this.attackBox && opponent && opponent.invuln <= 0) {
-      if (this.checkHit(opponent)) {
-        this.applyHit(opponent);
-        this.attackBox = null;
-      }
-    }
-
-    if (this.stateTimer <= 0 && (this.state === 'attack' || this.state === 'strong' || this.state === 'special')) {
-      this.state = 'idle';
-      this.attackBox = null;
-    }
-  }
-
-  handleInput(inp) {
-    if (this.state === 'attack' || this.state === 'strong' || this.state === 'special') return;
-
-    // Move
-    if (inp.left) { this.vx = -this.speed; this.state = 'walk'; }
-    else if (inp.right) { this.vx = this.speed; this.state = 'walk'; }
-    else if (this.onGround) this.state = 'idle';
-
-    // Jump
-    if (inp.jump && this.onGround) {
-      this.vy = -this.jumpForce;
-      this.onGround = false;
-      this.state = 'jump';
-    }
-
-    // Block
-    if (inp.block && this.onGround) {
-      this.state = 'block';
-      this.vx *= 0.3;
-      return;
-    }
-
-    // Attacks
-    if (inp.atk) this.doAttack('attack');
-    else if (inp.strong) this.doAttack('strong');
-    else if (inp.special) this.doAttack('special');
-  }
-
-  doAttack(type) {
-    if (this.state === type) return;
-    this.state = type;
-    this.stateTimer = type === 'special' ? 40 : type === 'strong' ? 28 : 18;
-    const range = this.getAttackRange(type);
-    const dmg = this.getAttackDamage(type);
-    this.attackBox = {
-      x: this.facing > 0 ? this.x + this.w : this.x - range,
-      y: this.y + 10,
-      w: range,
-      h: this.h - 20,
-      dmg,
-      type,
-      knock: type === 'special' ? 12 : type === 'strong' ? 8 : 4
-    };
-  }
-
-  getAttackRange(type) {
-    const base = type === 'special' ? 70 : type === 'strong' ? 50 : 35;
-    if (this.specialty === 'ranged' || this.specialty === 'whip') return base + 40;
-    if (this.specialty === 'close') return base - 10;
-    if (this.specialty === 'air' && !this.onGround) return base + 25;
-    return base;
-  }
-
-  getAttackDamage(type) {
-    let d = type === 'special' ? 18 : type === 'strong' ? 12 : 6;
-    d *= this.damageMul;
-    if (this.specialty === 'air' && !this.onGround) d *= 1.4;
-    if (this.specialty === 'tank') d *= 1.2;
-    return Math.round(d);
-  }
-
-  checkHit(opp) {
-    const a = this.attackBox;
-    return a.x < opp.x + opp.w && a.x + a.w > opp.x &&
-           a.y < opp.y + opp.h && a.y + a.h > opp.y;
-  }
-
-  applyHit(opp) {
-    if (opp.state === 'block') {
-      opp.hp -= Math.round(this.attackBox.dmg * 0.25);
-      opp.vx += this.facing * 3;
-      opp.state = 'block';
-      opp.stateTimer = 10;
-    } else {
-      opp.hp -= this.attackBox.dmg;
-      opp.vx += this.facing * this.attackBox.knock;
-      opp.vy = -4;
-      opp.state = 'hit';
-      opp.stateTimer = 15;
-      opp.invuln = 12;
-      opp.hitCooldown = 20;
-    }
-    if (opp.hp <= 0) {
-      opp.hp = 0;
-      opp.state = 'dead';
-    }
-  }
-
-  ai(opp) {
-    if (!opp || this.state === 'attack' || this.state === 'strong' || this.state === 'special') return;
-    const dist = Math.abs(this.x - opp.x);
-    const dir = opp.x > this.x ? 1 : -1;
-
-    // Simple AI
-    if (dist > 120) {
-      this.vx = dir * this.speed * 0.9;
-      this.state = 'walk';
-      if (Math.random() < 0.02 && this.onGround) {
-        this.vy = -this.jumpForce;
-        this.onGround = false;
-      }
-    } else if (dist > 50) {
-      if (Math.random() < 0.04) this.doAttack(Math.random() < 0.3 ? 'special' : 'strong');
-      else if (Math.random() < 0.08) this.doAttack('attack');
-      else {
-        this.vx = dir * this.speed * 0.6;
-        this.state = 'walk';
-      }
-    } else {
-      if (Math.random() < 0.1) this.doAttack('attack');
-      else if (Math.random() < 0.05) this.doAttack('strong');
-      else if (Math.random() < 0.03) {
-        this.state = 'block';
-        this.stateTimer = 20;
-      }
-    }
-  }
-
-  draw() {
-    ctx.save();
-    // Body
-    ctx.fillStyle = this.state === 'hit' ? '#fff' : this.color;
-    ctx.fillRect(this.x, this.y, this.w, this.h);
-
-    // Accent head/details
-    ctx.fillStyle = this.accent;
-    ctx.fillRect(this.x + 8, this.y + 5, this.w - 16, 18);
-
-    // Eyes
-    ctx.fillStyle = '#fff';
-    const eyeX = this.facing > 0 ? this.x + 22 : this.x + 8;
-    ctx.fillRect(eyeX, this.y + 10, 8, 8);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(eyeX + 2, this.y + 12, 4, 4);
-
-    // Specialty visual
-    if (this.specialty === 'whip' && (this.state === 'attack' || this.state === 'special')) {
-      ctx.strokeStyle = '#d35400';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(this.cx, this.cy);
-      ctx.lineTo(this.cx + this.facing * 60, this.cy - 10);
-      ctx.stroke();
-    }
-    if (this.specialty === 'ranged' && this.state === 'special') {
-      ctx.fillStyle = '#2ecc71';
-      ctx.beginPath();
-      ctx.arc(this.cx + this.facing * 50, this.cy, 12, 0, Math.PI*2);
-      ctx.fill();
-    }
-
-    // Attack flash
-    if (this.attackBox) {
-      ctx.fillStyle = 'rgba(255,255,0,0.4)';
-      ctx.fillRect(this.attackBox.x, this.attackBox.y, this.attackBox.w, this.attackBox.h);
-    }
-
-    // Name
-    ctx.fillStyle = '#fff';
-    ctx.font = '12px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(this.name, this.cx, this.y - 8);
-
-    // Block indicator
-    if (this.state === 'block') {
-      ctx.strokeStyle = '#0ff';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(this.x - 4, this.y - 4, this.w + 8, this.h + 8);
-    }
-
-    ctx.restore();
-  }
-}
+// Fighter class, projectiles, effects: see fighter.js / moves.js / sprites_*.js
 
 // ========== FIGHT STATE ==========
 let p1 = null, p2 = null;
@@ -389,6 +123,7 @@ function startFight(char1, char2, p1IsHuman = true, p2IsHuman = false) {
   timerAcc = 0;
   fightOver = false;
   winner = null;
+  projectiles.length = 0; fx.length = 0; shakeT = 0;
   gameState = State.FIGHT;
   document.getElementById('hud').style.display = 'block';
   if (isMobile()) document.getElementById('touchControls').style.display = 'block';
@@ -424,12 +159,14 @@ function getP2Input() {
 }
 
 function updateFight(dt) {
+  updateFx(dt);
   if (fightOver) return;
   const inp1 = getP1Input();
   const inp2 = p2.isPlayer ? getP2Input() : null;
 
   p1.update(dt, p2, inp1);
   p2.update(dt, p1, inp2);
+  updateProjectiles(dt, p1, p2);
 
   timerAcc += dt;
   if (timerAcc >= 60) {
@@ -481,7 +218,7 @@ function showVictory(charId) {
   const c = CHARACTERS[charId];
   document.getElementById('vicName').textContent = c.name;
   const el = document.getElementById('vicChar');
-  el.style.background = c.color;
+  el.style.background = `#222 url(${spriteIcon(charId, 120)}) center/contain no-repeat`;
   el.style.borderColor = c.accent;
   document.getElementById('victoryScreen').classList.remove('hidden');
 }
@@ -520,9 +257,14 @@ function drawStage() {
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (gameState === State.FIGHT || fightOver) {
+    ctx.save();
+    if (shakeT > 0) ctx.translate((Math.random() - 0.5) * shakeT, (Math.random() - 0.5) * shakeT);
     drawStage();
     if (p1) p1.draw();
     if (p2) p2.draw();
+    drawProjectiles();
+    drawFx();
+    ctx.restore();
   } else {
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -548,7 +290,7 @@ function buildCharGrid() {
   CHARACTERS.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.className = 'char-btn';
-    btn.innerHTML = `<div class="icon" style="background:${c.color};border:2px solid ${c.accent}"></div>${c.name}`;
+    btn.innerHTML = `<img class="icon" src="${spriteIcon(i, 64)}" alt="" style="width:64px;height:64px;border-radius:0;margin-bottom:2px">${c.name}`;
     btn.onclick = () => {
       document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
