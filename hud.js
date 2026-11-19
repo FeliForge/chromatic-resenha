@@ -26,8 +26,9 @@ function drawPortrait(c, charId, x, y, size, flip, accent) {
   g.addColorStop(0, '#6a46a8'); g.addColorStop(1, '#1b1038');
   c.fillStyle = g; c.fillRect(0, 0, size, size);
   c.save(); c.beginPath(); c.rect(0, 0, size, size); c.clip();
-  c.translate(size * 0.5, size * 0.6); c.scale((flip ? -1 : 1) * size / 56, size / 56);
-  LOOKS[charId].head(c, { state: 'idle', eyes: 'angry', mouth: 'closed', t: 0 }, 0);
+  const d = CHAR_DEF[charId], k = (size * 0.88) / Math.max(d.bh, d.bw * 0.95);
+  c.translate(size / 2, size * 0.94); c.scale((flip ? -1 : 1) * k * 0.9, k * 0.9);
+  drawSprite(c, charId, { ps: 'idle', t: 0, wph: 0, anim: '', ex: 0, bk: 0, k: 0, el: 0, p: 0, vy: 0, vx: 0, w: d.bw, h: d.bh, flash: false, atk: false, mv: null, landed: false });
   c.restore();
   c.lineWidth = 3; c.strokeStyle = accent || '#f2d36b'; c.strokeRect(0, 0, size, size);
   c.restore();
